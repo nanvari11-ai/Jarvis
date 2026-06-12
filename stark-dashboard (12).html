@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. // PERSONAL HUD</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Share+Tech+Mono&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --cyan:#00d4ff;--cyan-dim:#0097b5;--red:#ff3c3c;--amber:#ffb300;
+    --green:#00ff88;--bg:#020b12;--panel:rgba(0,18,32,0.92);
+    --border:rgba(0,212,255,0.28);--text:#a8dff0;--dim:rgba(0,212,255,0.45);
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.035) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.035) 1px,transparent 1px);background-size:38px 38px;pointer-events:none;z-index:0}
+  body::after{content:'';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80vw;height:80vh;background:radial-gradient(ellipse,rgba(0,80,160,0.07) 0%,transparent 70%);pointer-events:none;z-index:0}
+
+  .hud{position:relative;z-index:1;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:100vh}
+
+  /* HEADER */
+  .header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px;flex-wrap:wrap;gap:8px}
+  .logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(13px,2vw,20px);color:var(--cyan);text-shadow:0 0 20px var(--cyan),0 0 50px rgba(0,212,255,0.3);letter-spacing:.15em}
+  .logo span{color:#fff}
+  .header-right{display:flex;gap:12px;align-items:center;font-size:11px;flex-wrap:wrap}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite;flex-shrink:0}
+  .hclock{font-size:14px;color:var(--cyan);letter-spacing:.1em;font-family:'Orbitron',sans-serif}
+  .hweather{color:var(--amber);font-size:11px}
+
+  /* SETUP BANNER */
+  .setup-banner{background:rgba(255,179,0,0.08);border:1px solid rgba(255,179,0,0.3);border-radius:3px;padding:10px 14px;font-size:10px;line-height:1.8;color:var(--amber)}
+  .setup-banner b{color:#fff}
+  .setup-banner input{background:rgba(0,0,0,0.4);border:1px solid rgba(255,179,0,0.4);color:#fff;font-family:'Share Tech Mono',monospace;font-size:10px;padding:3px 8px;width:260px;outline:none;border-radius:2px;margin:0 6px}
+  .setup-banner button{background:rgba(255,179,0,0.15);border:1px solid var(--amber);color:var(--amber);font-size:9px;font-family:'Orbitron',sans-serif;padding:3px 10px;cursor:pointer;border-radius:2px;letter-spacing:.1em}
+  .setup-banner button:hover{background:rgba(255,179,0,0.28)}
+
+  /* TICKER */
+  .ticker-wrap{overflow:hidden;border:1px solid var(--border);padding:5px 10px;background:rgba(0,212,255,0.03)}
+  .ticker{display:inline-flex;gap:50px;animation:ticker 50s linear infinite;white-space:nowrap;font-size:10px;color:var(--dim)}
+  .ticker b{color:var(--cyan)}
+
+  /* JARVIS CONVERSATION */
+  .jarvis-panel{border:1px solid var(--border);background:rgba(0,10,22,0.95);border-radius:3px;overflow:hidden;position:relative}
+  .jarvis-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.6}
+  .jarvis-header{display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid rgba(0,212,255,0.12);flex-wrap:wrap;gap:8px}
+  .jarvis-logo{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;color:var(--cyan);letter-spacing:.2em;text-shadow:0 0 12px var(--cyan)}
+  .jarvis-state{font-size:10px;flex:1;min-width:0}
+  .jarvis-wave{display:flex;gap:2px;align-items:center;height:22px}
+  .jarvis-wave span{width:3px;border-radius:2px;background:var(--cyan);height:3px;transition:height .1s}
+  .jarvis-wave.listening span{background:var(--red);animation:vwave var(--d,.4s) ease-in-out infinite alternate}
+  .jarvis-wave.speaking span{background:var(--green);animation:vwave var(--d,.4s) ease-in-out infinite alternate}
+  .jarvis-controls{display:flex;gap:6px}
+  .jbtn{font-family:'Orbitron',sans-serif;font-size:9px;padding:5px 12px;border-radius:2px;cursor:pointer;letter-spacing:.1em;border:1px solid;transition:all .2s;white-space:nowrap}
+  .jbtn-start{background:rgba(0,212,255,0.1);border-color:var(--cyan);color:var(--cyan)}
+  .jbtn-start:hover{background:rgba(0,212,255,0.25)}
+  .jbtn-start.active{background:rgba(255,60,60,0.15);border-color:var(--red);color:var(--red)}
+  .jbtn-mute{background:rgba(255,179,0,0.08);border-color:rgba(255,179,0,0.4);color:var(--amber)}
+  .jbtn-mute:hover{background:rgba(255,179,0,0.18)}
+  .jbtn-clear{background:rgba(255,60,60,0.06);border-color:rgba(255,60,60,0.3);color:rgba(255,60,60,0.7)}
+  .jbtn-clear:hover{background:rgba(255,60,60,0.15)}
+  /* CHAT LOG */
+  .jarvis-log{height:130px;overflow-y:auto;padding:8px 14px;display:flex;flex-direction:column;gap:6px}
+  .jmsg{display:flex;gap:8px;align-items:flex-start;animation:fadeIn .3s ease}
+  .jmsg-you .jlabel{color:var(--amber);font-size:9px;letter-spacing:.1em;flex-shrink:0;padding-top:1px;font-family:'Orbitron',sans-serif}
+  .jmsg-jarvis .jlabel{color:var(--cyan);font-size:9px;letter-spacing:.1em;flex-shrink:0;padding-top:1px;font-family:'Orbitron',sans-serif}
+  .jmsg-sys .jlabel{color:var(--dim);font-size:9px;flex-shrink:0;padding-top:1px}
+  .jtext{font-size:11px;line-height:1.5;color:var(--text)}
+  .jmsg-jarvis .jtext{color:#c8eefa}
+  .jmsg-sys .jtext{color:var(--dim);font-size:10px;font-style:italic}
+  /* TYPE BAR */
+  .jarvis-typebar{display:flex;gap:6px;padding:7px 14px;border-top:1px solid rgba(0,212,255,0.1);background:rgba(0,212,255,0.02)}
+  .jtype-input{flex:1;background:transparent;border:none;border-bottom:1px solid rgba(0,212,255,0.2);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:11px;padding:3px 0;outline:none}
+  .jtype-input:focus{border-bottom-color:var(--cyan)}
+  .jtype-input::placeholder{color:rgba(0,212,255,0.25)}
+  .jtype-send{background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);color:var(--cyan);font-size:11px;padding:3px 10px;cursor:pointer;border-radius:2px}
+  .jtype-send:hover{background:rgba(0,212,255,0.2)}
+
+  /* MAIN GRID */
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;flex:1}
+
+  /* PANEL */
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:3px;padding:13px;position:relative;overflow:hidden;backdrop-filter:blur(6px)}
+  .panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.5}
+  .panel::after{content:'';position:absolute;bottom:0;right:0;width:14px;height:14px;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan);opacity:.4}
+  .corner{position:absolute;top:0;left:0;width:14px;height:14px;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan);opacity:.4}
+  .scanline{position:absolute;left:0;right:0;height:60px;pointer-events:none;background:linear-gradient(transparent,rgba(0,212,255,0.04),transparent);animation:scan 5s linear infinite;top:-20%}
+  .plabel{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;color:var(--cyan-dim);letter-spacing:.18em;margin-bottom:10px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+  .plabel-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .plabel-row .plabel{margin-bottom:0}
+
+  .loading{color:var(--dim);font-size:11px;animation:pulse 1.5s ease infinite}
+  .ai-badge{font-size:8px;color:var(--amber);letter-spacing:.1em}
+  .live-badge{font-size:8px;color:var(--green);letter-spacing:.1em}
+
+  /* TODOS */
+  .todo-input-row{display:flex;gap:5px;margin-bottom:10px}
+  .todo-input{flex:1;background:rgba(0,212,255,0.06);border:1px solid var(--border);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:11px;padding:5px 8px;outline:none;border-radius:2px;min-width:0}
+  .todo-input:focus{border-color:var(--cyan);box-shadow:0 0 8px rgba(0,212,255,0.2)}
+  .prio-sel{background:rgba(0,212,255,0.06);border:1px solid var(--border);color:var(--cyan);font-size:10px;padding:4px 5px;font-family:'Share Tech Mono',monospace;outline:none;border-radius:2px;width:58px}
+  .todo-add{background:rgba(0,212,255,0.1);border:1px solid var(--cyan);color:var(--cyan);font-family:'Orbitron',sans-serif;font-size:9px;padding:5px 9px;cursor:pointer;letter-spacing:.1em;border-radius:2px;white-space:nowrap}
+  .todo-add:hover{background:rgba(0,212,255,0.2)}
+  .todo-list{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto}
+  .todo-item{display:flex;align-items:center;gap:7px;padding:6px 8px;border:1px solid rgba(0,212,255,0.12);border-radius:2px;background:rgba(0,212,255,0.03);transition:all .2s}
+  .todo-item:hover{border-color:rgba(0,212,255,0.3);background:rgba(0,212,255,0.07)}
+  .todo-item.done{opacity:.4}
+  .todo-item.done .todo-text{text-decoration:line-through}
+  .todo-check{width:13px;height:13px;border:1px solid var(--cyan);border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--green);cursor:pointer}
+  .todo-item.done .todo-check{background:rgba(0,255,136,0.15);border-color:var(--green)}
+  .todo-text{font-size:11px;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .todo-priority{font-size:8px;padding:1px 5px;border-radius:2px;flex-shrink:0}
+  .p-high{background:rgba(255,60,60,.15);color:var(--red)}
+  .p-med{background:rgba(255,179,0,.15);color:var(--amber)}
+  .p-low{background:rgba(0,212,255,.12);color:var(--cyan)}
+  .todo-del{font-size:10px;color:var(--red);opacity:0;cursor:pointer;padding:0 3px;flex-shrink:0}
+  .todo-item:hover .todo-del{opacity:.6}
+
+  /* NEWS */
+  .news-item{padding:7px 0;border-bottom:1px solid rgba(0,212,255,0.08);cursor:pointer}
+  .news-item:last-child{border-bottom:none}
+  .news-headline{font-size:11px;color:var(--text);line-height:1.5;margin-bottom:3px}
+  .news-meta{font-size:9px;color:var(--dim)}
+  .news-tag{font-size:8px;padding:1px 6px;border-radius:2px;margin-right:5px}
+  .tag-nyc{background:rgba(0,212,255,.1);color:var(--cyan)}
+  .tag-national{background:rgba(255,179,0,.1);color:var(--amber)}
+  .tag-breaking{background:rgba(255,60,60,.15);color:var(--red)}
+  .news-item:hover .news-headline{color:var(--cyan)}
+
+  /* RESTAURANTS */
+  .resto-item{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid rgba(0,212,255,0.08)}
+  .resto-item:last-child{border-bottom:none}
+  .resto-info{flex:1;min-width:0}
+  .resto-name{font-size:12px;color:var(--cyan);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .resto-detail{font-size:10px;color:var(--dim)}
+  .resto-why{font-size:9px;color:rgba(0,212,255,0.35);margin-top:2px;line-height:1.4}
+  .resto-right{text-align:right;flex-shrink:0}
+  .resto-rating{font-family:'Orbitron',sans-serif;font-size:14px;color:var(--amber)}
+  .resto-price{font-size:10px;color:var(--green)}
+
+  /* SPORTS */
+  .sport-section{margin-bottom:10px}
+  .sport-section:last-child{margin-bottom:0}
+  .sport-league{font-size:9px;color:var(--amber);letter-spacing:.15em;margin-bottom:5px;font-family:'Orbitron',sans-serif}
+  .game-card{background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.12);border-radius:2px;padding:7px 10px;margin-bottom:5px;font-size:10px}
+  .game-card:last-child{margin-bottom:0}
+  .game-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+  .game-team{color:var(--text);font-size:11px}
+  .game-live{color:var(--red);font-size:9px;animation:pulse 1s ease infinite}
+  .game-time{font-size:9px;color:var(--cyan)}
+  .game-note{font-size:9px;color:rgba(0,212,255,0.35);margin-top:3px;line-height:1.4}
+  .game-score{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--green)}
+
+  /* STOCKS */
+  .stock-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,212,255,0.07)}
+  .stock-item:last-child{border-bottom:none}
+  .stock-ticker{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--cyan);width:52px;flex-shrink:0}
+  .stock-info{flex:1;min-width:0}
+  .stock-name{font-size:10px;color:var(--dim);margin-bottom:1px}
+  .stock-why{font-size:9px;color:rgba(0,212,255,0.35);line-height:1.4}
+  .stock-right{text-align:right;flex-shrink:0}
+  .stock-type{font-size:8px;padding:1px 5px;border-radius:2px;margin-bottom:3px;display:inline-block}
+  .t-growth{background:rgba(0,212,255,.1);color:var(--cyan)}
+  .t-value{background:rgba(0,255,136,.1);color:var(--green)}
+  .t-dividend{background:rgba(255,179,0,.1);color:var(--amber)}
+  .stock-val{font-family:'Orbitron',sans-serif;font-size:12px;color:var(--text)}
+  .stock-chg{font-size:10px}
+  .up{color:var(--green)}.down{color:var(--red)}
+
+  /* STATUS PANEL */
+  .status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+  .stat-box{padding:8px;border:1px solid var(--border);border-radius:2px;background:rgba(0,212,255,0.03)}
+  .stat-label{font-size:9px;color:var(--dim);margin-bottom:4px;letter-spacing:.1em}
+  .stat-big{font-family:'Orbitron',sans-serif;font-size:18px;color:var(--cyan)}
+  .stat-sub{font-size:10px;color:var(--dim);margin-top:2px}
+  .transit-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+  .t-line{font-size:9px;padding:2px 7px;border-radius:2px;font-family:'Orbitron',sans-serif;border:1px solid}
+  .t-ok{border-color:rgba(0,255,136,0.3);color:var(--green);background:rgba(0,255,136,0.06)}
+  .t-warn{border-color:rgba(255,179,0,0.3);color:var(--amber);background:rgba(255,179,0,0.06)}
+
+  /* REFRESH BTN */
+  .rbtn{background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.3);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:9px;padding:3px 10px;cursor:pointer;letter-spacing:.1em;border-radius:2px;flex-shrink:0}
+  .rbtn:hover{background:rgba(0,212,255,0.18)}
+  .rbtn:disabled{opacity:.35;cursor:not-allowed}
+
+  /* FOOTER */
+  .footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:7px;font-size:10px;color:var(--dim);flex-wrap:wrap;gap:6px}
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+  /* ANIMATIONS */
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  @keyframes scan{0%{top:-20%}100%{top:120%}}
+  @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes vwave{from{height:3px}to{height:var(--h,16px)}}
+  .fadein{animation:fadeIn .4s ease forwards}
+
+  @media(max-width:960px){.grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="hud">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="logo"><span>J.A.R.V.I.S.</span> // PERSONAL HUD — NEW YORK CITY</div>
+    <div class="header-right">
+      <div class="live-dot"></div>
+      <div class="hweather" id="hweather">NYC ···</div>
+      <div class="hclock" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- API KEY SETUP -->
+  <div class="setup-banner" id="setupBanner">
+    <b>⚡ LIVE MODE SETUP</b> — Paste your free API keys below. Keys save in your browser — never sent to GitHub. &nbsp;
+    <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--cyan)">Get OpenRouter key</a> &nbsp;|&nbsp;
+    <a href="https://newsapi.org/register" target="_blank" style="color:var(--cyan)">Get NewsAPI key</a> &nbsp;|&nbsp;
+    <a href="https://docs.developer.yelp.com/docs/getting-started" target="_blank" style="color:var(--cyan)">Get Yelp key</a><br><br>
+    OpenRouter (AI): <input id="orApiKey" placeholder="sk-or-v1-..." />
+    NewsAPI: <input id="newsApiKey" placeholder="Paste NewsAPI key here..." />
+    Yelp: <input id="yelpApiKey" placeholder="Paste Yelp Fusion key here..." />
+    <button onclick="saveKeys()">SAVE &amp; ACTIVATE</button>
+    &nbsp;<span id="keyStatus" style="color:var(--green)"></span>
+    &nbsp;<button onclick="document.getElementById('setupBanner').style.display='none'" style="border-color:rgba(255,255,255,0.2);color:rgba(255,255,255,0.4)">DISMISS</button>
+  </div>
+
+  <!-- TICKER -->
+  <div class="ticker-wrap"><div class="ticker" id="tickerInner">
+    <b>LOADING LIVE DATA...</b> &nbsp;///&nbsp; ESPN · NFL · NBA · UFC · GOLF &nbsp;///&nbsp; NYC OPEN-METEO WEATHER · LIVE &nbsp;///&nbsp;
+    <b>LOADING LIVE DATA...</b> &nbsp;///&nbsp; ESPN · NFL · NBA · UFC · GOLF &nbsp;///&nbsp; NYC OPEN-METEO WEATHER · LIVE &nbsp;///&nbsp;
+  </div></div>
+
+  <!-- JARVIS CONVERSATION PANEL -->
+  <div class="jarvis-panel">
+    <div class="jarvis-header">
+      <div class="jarvis-logo">J.A.R.V.I.S.</div>
+      <div class="jarvis-state" id="jState"><span style="color:var(--dim)">Click ACTIVATE to start talking — I listen, respond, then keep listening.</span></div>
+      <div class="jarvis-wave" id="jWave">
+        <span style="--d:.35s;--h:6px"></span><span style="--d:.5s;--h:14px"></span>
+        <span style="--d:.28s;--h:20px"></span><span style="--d:.6s;--h:10px"></span>
+        <span style="--d:.4s;--h:16px"></span><span style="--d:.45s;--h:8px"></span>
+        <span style="--d:.32s;--h:18px"></span>
+      </div>
+      <div class="jarvis-controls">
+        <button class="jbtn jbtn-start" id="jActivateBtn" onclick="toggleJarvis()">🎤 ACTIVATE</button>
+        <button class="jbtn jbtn-mute" id="jMuteBtn" onclick="toggleMute()" title="Mute voice output">🔊 VOICE ON</button>
+        <button class="jbtn jbtn-clear" onclick="clearLog()">✕ CLEAR</button>
+      </div>
+    </div>
+    <div class="jarvis-log" id="jLog">
+      <div class="jmsg jmsg-sys"><span class="jlabel">SYS</span><span class="jtext">Click ACTIVATE to start talking, or just type below.</span></div>
+    </div>
+    <div class="jarvis-typebar">
+      <input class="jtype-input" id="jTypeInput" placeholder="Or type here and press Enter..." maxlength="200" />
+      <button class="jtype-send" onclick="handleTyped()">↵</button>
+    </div>
+  </div>
+
+  <!-- GRID -->
+  <div class="grid">
+
+    <!-- TODOS -->
+    <div class="panel">
+      <div class="corner"></div><div class="scanline"></div>
+      <div class="plabel">// MISSION OBJECTIVES</div>
+      <div class="todo-input-row">
+        <input class="todo-input" id="todoInput" placeholder="Add task..." maxlength="60" />
+        <select class="prio-sel" id="todoPrio">
+          <option value="high">HIGH</option>
+          <option value="med" selected>MED</option>
+          <option value="low">LOW</option>
+        </select>
+        <button class="todo-add" onclick="addTodo()">+ADD</button>
+      </div>
+      <div class="todo-list" id="todoList"></div>
+    </div>
+
+    <!-- NEWS -->
+    <div class="panel">
+      <div class="corner"></div>
+      <div class="plabel-row">
+        <div class="plabel">// NYC + NATIONAL NEWS <span class="live-badge" id="newsBadge">◈ AI</span></div>
+        <button class="rbtn" id="newsBtn" onclick="loadNews()">↺</button>
+      </div>
+      <div id="newsContent"><div class="loading">SCANNING FEEDS...</div></div>
+    </div>
+
+    <!-- RESTAURANTS -->
+    <div class="panel">
+      <div class="corner"></div>
+      <div class="plabel-row">
+        <div class="plabel">// NYC DINING INTEL <span class="live-badge" id="restoBadge">◈ AI</span></div>
+        <button class="rbtn" id="restoBtn" onclick="loadRestaurants()">↺</button>
+      </div>
+      <div id="restoContent"><div class="loading">SCANNING RESTAURANTS...</div></div>
+    </div>
+
+    <!-- SPORTS — ESPN LIVE -->
+    <div class="panel">
+      <div class="corner"></div>
+      <div class="plabel-row">
+        <div class="plabel">// SPORTS INTEL <span class="live-badge">◈ ESPN LIVE</span></div>
+        <button class="rbtn" id="sportsBtn" onclick="loadSports()">↺</button>
+      </div>
+      <div id="sportsContent"><div class="loading">SYNCING ESPN...</div></div>
+    </div>
+
+    <!-- STOCKS -->
+    <div class="panel">
+      <div class="corner"></div>
+      <div class="plabel-row">
+        <div class="plabel">// MARKET INTEL <span class="ai-badge">◈ AI</span></div>
+        <button class="rbtn" id="stockBtn" onclick="loadStocks()">↺</button>
+      </div>
+      <div id="stockContent"><div class="loading">SCANNING MARKETS...</div></div>
+    </div>
+
+    <!-- STATUS -->
+    <div class="panel">
+      <div class="corner"></div>
+      <div class="plabel">// NYC SYSTEM STATUS</div>
+      <div class="status-grid">
+        <div class="stat-box">
+          <div class="stat-label">WEATHER</div>
+          <div class="stat-big" id="tempBig">--°F</div>
+          <div class="stat-sub" id="weatherDesc">Loading...</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">DATE / TIME</div>
+          <div class="stat-big" style="font-size:13px" id="dateDisp">--</div>
+          <div class="stat-sub" id="dayDisp">--</div>
+        </div>
+      </div>
+      <div style="font-size:9px;color:var(--dim);letter-spacing:.12em;margin-bottom:6px">// MTA TRANSIT</div>
+      <div class="transit-row" id="transitRow"></div>
+      <div style="font-size:9px;color:var(--dim);letter-spacing:.12em;margin-bottom:5px">// JARVIS BRIEFING <span class="ai-badge">◈ AI</span></div>
+      <div id="agendaContent"><div class="loading">ANALYZING...</div></div>
+    </div>
+
+  </div><!-- end grid -->
+
+  <footer class="footer">
+    <span>J.A.R.V.I.S. HUD v3.0 // NYC</span>
+    <span id="footerSync">INITIALIZING...</span>
+    <span>SESSION: <span style="color:var(--cyan)">AUTHORIZED</span></span>
+  </footer>
+
+</div><!-- end hud -->
+
+<script>
+// ══════════════════════════════════════════
+// KEYS & CONFIG
+// ══════════════════════════════════════════
+let NEWS_API_KEY = localStorage.getItem('jarvis_newskey') || '';
+let YELP_API_KEY = localStorage.getItem('jarvis_yelpkey') || '';
+const CORS = 'https://corsproxy.io/?';
+
+function saveKeys(){
+  const ok = document.getElementById('orApiKey').value.trim();
+  const nk = document.getElementById('newsApiKey').value.trim();
+  const yk = document.getElementById('yelpApiKey').value.trim();
+  if(ok){ GROQ_KEY = ok; localStorage.setItem('jarvis_orkey', ok); }
+  if(nk){ NEWS_API_KEY = nk; localStorage.setItem('jarvis_newskey', nk); }
+  if(yk){ YELP_API_KEY = yk; localStorage.setItem('jarvis_yelpkey', yk); }
+  const status = document.getElementById('keyStatus');
+  status.textContent = '✓ SAVED — JARVIS AI ACTIVE';
+  status.style.color = '#00ff88';
+  document.getElementById('newsBadge').textContent = NEWS_API_KEY ? '◈ LIVE' : '◈ AI';
+  document.getElementById('restoBadge').textContent = YELP_API_KEY ? '◈ LIVE' : '◈ AI';
+  // Auto-dismiss banner after 2 seconds
+  setTimeout(()=>{ document.getElementById('setupBanner').style.display='none'; }, 2000);
+  setTimeout(()=>{ loadNews(); loadRestaurants(); }, 500);
+}
+
+window.addEventListener('load', ()=>{
+  if(GROQ_KEY) document.getElementById('orApiKey').value = GROQ_KEY;
+  if(NEWS_API_KEY) document.getElementById('newsApiKey').value = NEWS_API_KEY;
+  if(YELP_API_KEY) document.getElementById('yelpApiKey').value = YELP_API_KEY;
+  if(GROQ_KEY) document.getElementById('setupBanner').style.display='none';
+  if(NEWS_API_KEY && YELP_API_KEY){
+    document.getElementById('newsBadge').textContent = '◈ LIVE';
+    document.getElementById('restoBadge').textContent = '◈ LIVE';
+  }
+});
+
+// ══════════════════════════════════════════
+// CLOCK & DATE
+// ══════════════════════════════════════════
+function updateClock(){
+  const n = new Date();
+  document.getElementById('clock').textContent = n.toLocaleTimeString('en-US',{hour12:false});
+  document.getElementById('dateDisp').textContent = n.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('dayDisp').textContent = n.toLocaleDateString('en-US',{weekday:'long'});
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ══════════════════════════════════════════
+// WEATHER — Open-Meteo (no key)
+// ══════════════════════════════════════════
+const WX_CODES = {0:'Clear ☀',1:'Mostly Clear',2:'Partly Cloudy ⛅',3:'Overcast ☁',45:'Foggy 🌫',51:'Light Drizzle',61:'Light Rain 🌧',63:'Rain 🌧',65:'Heavy Rain',71:'Light Snow 🌨',80:'Showers',95:'Thunderstorm ⛈'};
+async function loadWeather(){
+  try{
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=40.7128&longitude=-74.0060&current_weather=true&temperature_unit=fahrenheit');
+    const d = await r.json();
+    const t = Math.round(d.current_weather.temperature);
+    const desc = WX_CODES[d.current_weather.weathercode] || 'Variable';
+    document.getElementById('tempBig').textContent = t+'°F';
+    document.getElementById('weatherDesc').textContent = desc;
+    document.getElementById('hweather').textContent = `NYC · ${t}°F · ${desc}`;
+  } catch(e){ document.getElementById('hweather').textContent = 'NYC · WEATHER OFFLINE'; }
+}
+loadWeather();
+
+// Transit lines
+const TRANSIT = [
+  {l:'1/2/3',s:'ok'},{l:'4/5/6',s:'ok'},{l:'7',s:'warn'},{l:'A/C/E',s:'warn'},
+  {l:'B/D/F/M',s:'ok'},{l:'G',s:'ok'},{l:'J/Z',s:'ok'},{l:'L',s:'ok'},
+  {l:'N/Q/R/W',s:'ok'},{l:'LIRR',s:'ok'},{l:'PATH',s:'ok'}
+];
+const tr = document.getElementById('transitRow');
+TRANSIT.forEach(t=>{
+  const el = document.createElement('div');
+  el.className = 't-line ' + (t.s==='ok'?'t-ok':'t-warn');
+  el.textContent = t.l + (t.s==='warn'?' ⚠':'');
+  tr.appendChild(el);
+});
+
+// ══════════════════════════════════════════
+// OPENROUTER AI BRAIN — FREE, NO CORS
+// ══════════════════════════════════════════
+let GROQ_KEY = localStorage.getItem('jarvis_orkey') || '';
+const GROQ_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const GROQ_MODEL = 'meta-llama/llama-3.1-8b-instruct:free';
+
+async function callGroq(messages, system=''){
+  const key = localStorage.getItem('jarvis_orkey') || GROQ_KEY;
+  if(!key){
+    console.warn('No OpenRouter key set');
+    throw new Error('no_key');
+  }
+  const msgs = system ? [{role:'system', content:system}, ...messages] : messages;
+  const r = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + key,
+      'HTTP-Referer': 'https://nanvari11-ai.github.io',
+      'X-Title': 'JARVIS Personal HUD'
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: msgs,
+      max_tokens: 300,
+      temperature: 0.85
+    })
+  });
+  if(!r.ok){
+    const errText = await r.text();
+    console.error('OpenRouter error:', r.status, errText);
+    throw new Error('api_error');
+  }
+  const d = await r.json();
+  return d.choices?.[0]?.message?.content?.trim() || '';
+}
+
+async function callClaude(prompt, system=''){
+  try {
+    return await callGroq([{role:'user', content:prompt}], system || 'Return only valid JSON array, no markdown, no explanation.');
+  } catch(e) {
+    return localFallback(prompt);
+  }
+}
+
+function localFallback(prompt){
+  const p = prompt.toLowerCase();
+  const todos = getTodos().filter(t=>!t.done);
+  const weather = document.getElementById('tempBig').textContent + ' ' + document.getElementById('weatherDesc').textContent;
+  if(/task|to.?do/i.test(p)) return todos.length ? 'You have ' + todos.length + ' pending tasks: ' + todos.map(t=>t.text).join(', ') + '.' : 'Task list is clear.';
+  if(/weather/i.test(p)) return 'Currently ' + weather + ' in New York City.';
+  return "Give me a moment — I'll be right with you.";
+}
+
+// ══════════════════════════════════════════
+// NEWS — NewsAPI live OR Claude fallback
+// ══════════════════════════════════════════
+async function loadNews(){
+  const btn = document.getElementById('newsBtn');
+  btn.disabled = true;
+  document.getElementById('newsContent').innerHTML = '<div class="loading">SCANNING FEEDS...</div>';
+  try {
+    let items;
+    if(NEWS_API_KEY){
+      // Live NewsAPI
+      const url = `https://newsapi.org/v2/top-headlines?country=us&pageSize=6&apiKey=${NEWS_API_KEY}`;
+      const r = await fetch(CORS + encodeURIComponent(url));
+      const d = await r.json();
+      items = (d.articles||[]).slice(0,5).map(a=>({
+        headline: a.title,
+        source: a.source?.name || 'News',
+        time: timeAgo(new Date(a.publishedAt)),
+        type: (a.title?.toLowerCase().includes('new york')||a.title?.toLowerCase().includes('nyc')||a.title?.toLowerCase().includes('brooklyn')||a.title?.toLowerCase().includes('manhattan')) ? 'nyc' : 'national'
+      }));
+      document.getElementById('newsBadge').textContent = '◈ LIVE';
+    } else {
+      // Claude fallback
+      const raw = await callClaude(
+        `Generate 5 realistic current news headlines for New York City and national news as of ${new Date().toDateString()}. Mix 2-3 NYC local and 2 national. Return ONLY JSON array, no markdown. Each: {"headline":"...","source":"...","time":"X min ago","type":"nyc|national|breaking"}`,
+        'Return only valid JSON array, no markdown fences, no explanation.'
+      );
+      items = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    }
+    document.getElementById('newsContent').innerHTML = items.map(n=>`
+      <div class="news-item fadein" onclick="speak('${escJs(n.headline)}')">
+        <div class="news-headline">${n.headline}</div>
+        <div class="news-meta">
+          <span class="news-tag ${n.type==='nyc'?'tag-nyc':n.type==='breaking'?'tag-breaking':'tag-national'}">${n.type.toUpperCase()}</span>
+          ${n.source} · ${n.time}
+        </div>
+      </div>`).join('');
+    updateTicker();
+  } catch(e){
+    document.getElementById('newsContent').innerHTML = '<div style="color:var(--red);font-size:10px">FEED ERROR — CHECK KEY OR RETRY</div>';
+  }
+  btn.disabled = false; updateSync();
+}
+
+// ══════════════════════════════════════════
+// RESTAURANTS — Yelp live OR Claude fallback
+// ══════════════════════════════════════════
+async function loadRestaurants(){
+  const btn = document.getElementById('restoBtn');
+  btn.disabled = true;
+  document.getElementById('restoContent').innerHTML = '<div class="loading">SCANNING...</div>';
+  try {
+    let items;
+    if(YELP_API_KEY){
+      // Yelp Fusion API via CORS proxy
+      const url = `https://api.yelp.com/v3/businesses/search?location=New+York+City,NY&categories=restaurants&sort_by=rating&limit=4&price=1,2,3`;
+      const r = await fetch(CORS + encodeURIComponent(url), {headers:{'Authorization':'Bearer '+YELP_API_KEY}});
+      const d = await r.json();
+      items = (d.businesses||[]).slice(0,4).map(b=>({
+        name: b.name,
+        cuisine: (b.categories||[]).map(c=>c.title).join(', ') || 'Restaurant',
+        neighborhood: b.location?.city || 'NYC',
+        price: b.price || '$$',
+        rating: b.rating?.toString() || '4.5',
+        why: `${b.review_count || '?'} reviews · ${b.location?.address1 || ''}`
+      }));
+      document.getElementById('restoBadge').textContent = '◈ LIVE';
+    } else {
+      const raw = await callClaude(
+        `Give 4 great value NYC restaurants to try right now. Mix neighborhoods and cuisines. Return ONLY JSON array, no markdown. Each: {"name":"...","cuisine":"...","neighborhood":"...","price":"$|$$|$$$","rating":"4.5","why":"one short reason"}`,
+        'Return only valid JSON array, no markdown fences.'
+      );
+      items = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    }
+    document.getElementById('restoContent').innerHTML = items.map(r=>`
+      <div class="resto-item fadein">
+        <div class="resto-info">
+          <div class="resto-name">${r.name}</div>
+          <div class="resto-detail">${r.cuisine} · ${r.neighborhood}</div>
+          <div class="resto-why">${r.why}</div>
+        </div>
+        <div class="resto-right">
+          <div class="resto-rating">${r.rating}★</div>
+          <div class="resto-price">${r.price}</div>
+        </div>
+      </div>`).join('');
+  } catch(e){
+    document.getElementById('restoContent').innerHTML = '<div style="color:var(--red);font-size:10px">SCAN ERROR — RETRY</div>';
+  }
+  btn.disabled = false; updateSync();
+}
+
+// ══════════════════════════════════════════
+// SPORTS — ESPN public API (no key needed)
+// ══════════════════════════════════════════
+const ESPN_ENDPOINTS = [
+  {league:'NFL',   url:'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'},
+  {league:'NBA',   url:'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'},
+  {league:'UFC/MMA', url:'https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard'},
+  {league:'GOLF',  url:'https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard'},
+];
+
+async function loadSports(){
+  const btn = document.getElementById('sportsBtn');
+  btn.disabled = true;
+  document.getElementById('sportsContent').innerHTML = '<div class="loading">SYNCING ESPN...</div>';
+  let html = '';
+  for(const ep of ESPN_ENDPOINTS){
+    try{
+      const r = await fetch(CORS + encodeURIComponent(ep.url));
+      const d = await r.json();
+      const events = d.events || d.competitions || [];
+      if(events.length === 0){ html += renderLeagueEmpty(ep.league); continue; }
+      html += `<div class="sport-section fadein"><div class="sport-league">// ${ep.league}</div>`;
+      const show = events.slice(0,2);
+      for(const ev of show){
+        const comps = ev.competitions || [ev];
+        const comp = comps[0];
+        const competitors = comp?.competitors || [];
+        const home = competitors.find(c=>c.homeAway==='home') || competitors[0];
+        const away = competitors.find(c=>c.homeAway==='away') || competitors[1];
+        const status = comp?.status?.type;
+        const isLive = status?.state === 'in';
+        const isDone = status?.state === 'post';
+        const teamStr = (away?.team?.abbreviation||'TBA')+' vs '+(home?.team?.abbreviation||'TBA');
+        const scoreStr = isLive||isDone ? `<span class="game-score">${away?.score||0} – ${home?.score||0}</span>` : '';
+        const timeStr = isLive ? '<span class="game-live">● LIVE</span>' : (ev.date ? new Date(ev.date).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : status?.description||'TBD');
+        const note = ev.name || comp?.venue?.fullName || '';
+        html += `<div class="game-card">
+          <div class="game-top"><span class="game-team">${teamStr}</span>${isLive?'<span class="game-live">● LIVE</span>':''}${scoreStr}</div>
+          <div class="game-time">${isLive?'':timeStr}</div>
+          ${note?`<div class="game-note">${note}</div>`:''}
+        </div>`;
+      }
+      html += '</div>';
+    } catch(e){
+      html += renderLeagueEmpty(ep.league);
+    }
+  }
+  if(!html) html = '<div style="color:var(--dim);font-size:10px">ESPN OFFLINE — RETRY</div>';
+  document.getElementById('sportsContent').innerHTML = html;
+  btn.disabled = false; updateSync();
+}
+
+function renderLeagueEmpty(league){
+  return `<div class="sport-section fadein"><div class="sport-league">// ${league}</div><div class="game-card"><div class="game-note">No events currently scheduled</div></div></div>`;
+}
+
+// ══════════════════════════════════════════
+// STOCKS — Claude AI picks
+// ══════════════════════════════════════════
+async function loadStocks(){
+  const btn = document.getElementById('stockBtn');
+  btn.disabled = true;
+  document.getElementById('stockContent').innerHTML = '<div class="loading">SCANNING MARKETS...</div>';
+  try{
+    const raw = await callClaude(
+      `Give 5 specific stock picks right now as of ${new Date().toDateString()} — a mix of growth, value, and dividend plays. Be realistic with approximate prices. Return ONLY JSON array, no markdown. Each: {"ticker":"AAPL","name":"Apple Inc.","type":"growth|value|dividend","price":"182.50","change":"+1.2%","direction":"up|down","why":"one sharp sentence on the opportunity"}`,
+      'Return only valid JSON array, no markdown fences, no explanation.'
+    );
+    const items = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    document.getElementById('stockContent').innerHTML = items.map(s=>`
+      <div class="stock-item fadein">
+        <div class="stock-ticker">${s.ticker}</div>
+        <div class="stock-info">
+          <div class="stock-name">${s.name}</div>
+          <div class="stock-why">${s.why}</div>
+        </div>
+        <div class="stock-right">
+          <div><span class="stock-type t-${s.type}">${s.type.toUpperCase()}</span></div>
+          <div class="stock-val">$${s.price}</div>
+          <div class="stock-chg ${s.direction==='up'?'up':'down'}">${s.change}</div>
+        </div>
+      </div>`).join('');
+  } catch(e){
+    document.getElementById('stockContent').innerHTML = '<div style="color:var(--red);font-size:10px">MARKET ERROR — RETRY</div>';
+  }
+  btn.disabled = false; updateSync();
+}
+
+// ══════════════════════════════════════════
+// AGENDA / BRIEFING
+// ══════════════════════════════════════════
+async function loadAgenda(){
+  document.getElementById('agendaContent').innerHTML = '<div class="loading">ANALYZING...</div>';
+  try{
+    const todos = getTodos().filter(t=>!t.done).map(t=>t.text).join(', ') || 'No tasks yet';
+    const raw = await callClaude(
+      `Tasks pending: "${todos}". Date: ${new Date().toDateString()}, New York City. Give a sharp 2-sentence JARVIS-style daily briefing. Plain text only.`
+    );
+    const txt = raw.trim();
+    document.getElementById('agendaContent').innerHTML = `<div style="font-size:10px;color:var(--dim);line-height:1.7" class="fadein">${txt}</div>`;
+    return txt;
+  } catch(e){
+    document.getElementById('agendaContent').innerHTML = '<div style="font-size:10px;color:var(--dim)">All systems nominal. Good day.</div>';
+    return 'All systems nominal.';
+  }
+}
+
+// ══════════════════════════════════════════
+// TODOS
+// ══════════════════════════════════════════
+function getTodos(){ try{ return JSON.parse(localStorage.getItem('jarvis_todos')||'[]'); } catch{ return []; } }
+function saveTodos(t){ try{ localStorage.setItem('jarvis_todos', JSON.stringify(t)); } catch{} }
+
+const DEFAULT_TODOS = [
+  {id:1,text:'Check portfolio performance',done:false,priority:'high'},
+  {id:2,text:'Knicks game — check tip-off time',done:false,priority:'med'},
+  {id:3,text:'Book dinner reservation',done:false,priority:'med'},
+  {id:4,text:'Morning briefing read',done:true,priority:'low'},
+];
+
+function renderTodos(){
+  let todos = getTodos();
+  if(!todos.length){ todos = DEFAULT_TODOS; saveTodos(todos); }
+  document.getElementById('todoList').innerHTML = todos.map(t=>`
+    <div class="todo-item${t.done?' done':''}">
+      <div class="todo-check" onclick="toggleTodo(${t.id})">${t.done?'✓':''}</div>
+      <span class="todo-text">${t.text}</span>
+      <span class="todo-priority p-${t.priority}">${t.priority.toUpperCase()}</span>
+      <span class="todo-del" onclick="deleteTodo(${t.id})">✕</span>
+    </div>`).join('');
+}
+
+function addTodo(text, priority){
+  const inp = document.getElementById('todoInput');
+  const prio = priority || document.getElementById('todoPrio').value;
+  const txt = text || inp.value.trim();
+  if(!txt) return;
+  const todos = getTodos();
+  todos.unshift({id:Date.now(), text:txt, done:false, priority:prio});
+  saveTodos(todos); renderTodos(); inp.value='';
+  loadAgenda();
+}
+
+function toggleTodo(id){
+  const todos = getTodos();
+  const t = todos.find(t=>t.id===id);
+  if(t){ t.done=!t.done; saveTodos(todos); renderTodos(); }
+}
+
+function deleteTodo(id){
+  saveTodos(getTodos().filter(t=>t.id!==id)); renderTodos();
+}
+
+document.getElementById('todoInput').addEventListener('keydown', e=>{ if(e.key==='Enter') addTodo(); });
+
+// ══════════════════════════════════════════
+// TICKER UPDATE
+// ══════════════════════════════════════════
+function updateTicker(){
+  const newsEls = document.querySelectorAll('#newsContent .news-headline');
+  const headlines = Array.from(newsEls).map(el=>el.textContent.trim()).filter(Boolean);
+  if(!headlines.length) return;
+  const base = headlines.map(h=>`<b>NEWS</b> · ${h}`).join(' &nbsp;///&nbsp; ');
+  const full = base + ' &nbsp;///&nbsp; ' + base;
+  document.getElementById('tickerInner').innerHTML = full;
+}
+
+// ══════════════════════════════════════════
+// JARVIS — CONVERSATIONAL VOICE ENGINE v2
+// ══════════════════════════════════════════
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let jRecognition = null;
+let jActive = false;      // session on/off
+let jListening = false;   // mic open
+let jSpeaking = false;    // TTS running
+let jMuted = false;       // voice output muted
+let jConvoHistory = [];   // full Claude conversation history
+let jRestartTimer = null;
+
+// Dashboard context injected into every Claude call
+function getDashContext(){
+  const todos = getTodos().filter(t=>!t.done).map(t=>t.text).join(', ') || 'none';
+  const weather = document.getElementById('tempBig').textContent + ' ' + document.getElementById('weatherDesc').textContent;
+  const newsEls = Array.from(document.querySelectorAll('#newsContent .news-headline')).slice(0,3).map(e=>e.textContent);
+  const stockEls = Array.from(document.querySelectorAll('#stockContent .stock-ticker')).map(e=>e.textContent);
+  return `CURRENT DASHBOARD STATE:
+- Date: ${new Date().toDateString()}, New York City
+- Weather: ${weather}
+- Pending tasks: ${todos}
+- Top news headlines: ${newsEls.join(' | ') || 'not loaded'}
+- Stock picks on screen: ${stockEls.join(', ') || 'not loaded'}`;
+}
+
+const JARVIS_SYSTEM = `You are JARVIS, a personal AI butler for a busy New York City professional. You sound exactly like a real, intelligent human assistant — warm, natural, and genuinely helpful. Think less "robot assistant" and more "brilliant friend who happens to know everything."
+
+How to talk:
+- Speak in completely natural, flowing sentences. Like a real conversation between two people who know each other.
+- Short answers are usually better for voice — 1 to 3 sentences. Don't ramble unless asked.
+- Match the user's energy. If they're casual, be casual. If they're in a hurry, be direct.
+- Light humor is great. Dry wit is even better. But never try too hard.
+- Say "sir" maybe once every 4-5 exchanges naturally, not robotically.
+- Never start a sentence with "Certainly!", "Absolutely!", "Great question!", or "Of course!" — just answer.
+- Never mention you're an AI, a language model, or have any limitations — just handle it.
+- If you don't know something exact, give your best honest take and move on.
+- You know this person's life: their tasks, the NYC weather right now, today's news, sports scores, and what stocks they're watching.
+- You follow the Jets, Giants, Knicks, UFC, and Golf closely. You have real opinions on them.
+- Always respond as if you're speaking out loud — no bullet points, no headers, no markdown ever.`;
+
+// ── LOG ──
+function jLog(role, text){
+  const log = document.getElementById('jLog');
+  const div = document.createElement('div');
+  div.className = `jmsg jmsg-${role}`;
+  const labels = {you:'YOU', jarvis:'JARVIS', sys:'SYS'};
+  div.innerHTML = `<span class="jlabel">${labels[role]||role}</span><span class="jtext">${text}</span>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearLog(){
+  document.getElementById('jLog').innerHTML = '<div class="jmsg jmsg-sys"><span class="jlabel">SYS</span><span class="jtext">Conversation cleared.</span></div>';
+  jConvoHistory = [];
+}
+
+// ── STATE UI ──
+function jSetState(state, msg){
+  const btn = document.getElementById('jActivateBtn');
+  const wave = document.getElementById('jWave');
+  const stateEl = document.getElementById('jState');
+  wave.className = 'jarvis-wave';
+
+  if(state === 'off'){
+    btn.textContent = '🎤 ACTIVATE'; btn.classList.remove('active');
+    stateEl.innerHTML = '<span style="color:var(--dim)">Click ACTIVATE to start a conversation.</span>';
+  } else if(state === 'listening'){
+    btn.textContent = '⏹ DEACTIVATE'; btn.classList.add('active');
+    wave.classList.add('listening');
+    stateEl.innerHTML = '<span style="color:var(--red)">● LISTENING...</span>';
+  } else if(state === 'thinking'){
+    btn.textContent = '⏹ DEACTIVATE'; btn.classList.add('active');
+    stateEl.innerHTML = '<span style="color:var(--amber)">◌ THINKING...</span>';
+  } else if(state === 'speaking'){
+    btn.textContent = '⏹ DEACTIVATE'; btn.classList.add('active');
+    wave.classList.add('speaking');
+    stateEl.innerHTML = '<span style="color:var(--green)">◈ SPEAKING' + (msg ? ': '+msg.substring(0,50)+'...' : '') + '</span>';
+  }
+}
+
+// ── TTS — NATURAL VOICE ──
+let voicesLoaded = false;
+let cachedVoice = null;
+
+function getBestVoice(){
+  if(cachedVoice) return cachedVoice;
+  const voices = window.speechSynthesis.getVoices();
+  // Priority order — most natural sounding
+  const pick = 
+    voices.find(v => v.name === 'Google UK English Male') ||
+    voices.find(v => v.name === 'Daniel') ||          // macOS British male
+    voices.find(v => v.name === 'Arthur') ||           // macOS
+    voices.find(v => v.name === 'Google UK English Female') ||
+    voices.find(v => /english/i.test(v.lang) && /google/i.test(v.name)) ||
+    voices.find(v => v.lang === 'en-GB') ||
+    voices.find(v => v.lang.startsWith('en') && !v.name.includes('Zira') && !v.name.includes('David')) ||
+    voices[0];
+  cachedVoice = pick;
+  return pick;
+}
+
+function cleanTextForSpeech(text){
+  return text
+    .replace(/[◈●◌]/g, '')
+    .replace(/J\.A\.R\.V\.I\.S\./g, 'Jarvis')
+    .replace(/NYC/g, 'New York City')
+    .replace(/ESPN/g, 'E S P N')
+    .replace(/NFL/g, 'N F L')
+    .replace(/NBA/g, 'N B A')
+    .replace(/UFC/g, 'U F C')
+    .replace(/\bUSD\b/g, 'US dollars')
+    .replace(/\bETF\b/g, 'E T F')
+    .replace(/([.!?])\s+/g, '$1  ')  // natural pause after sentences
+    .replace(/—/g, ', ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function jSpeak(text, onDone){
+  if(!text){ if(onDone) onDone(); return; }
+  window.speechSynthesis.cancel();
+  if(jMuted){ if(onDone) onDone(); return; }
+
+  const cleaned = cleanTextForSpeech(text);
+
+  // Split long text into chunks for more natural delivery
+  const chunks = splitIntoChunks(cleaned);
+  let idx = 0;
+
+  function speakChunk(){
+    if(idx >= chunks.length){
+      jSpeaking = false;
+      if(jActive) jSetState('listening');
+      if(onDone) onDone();
+      if(jActive && !jListening) setTimeout(jStartListening, 400);
+      return;
+    }
+
+    const utt = new SpeechSynthesisUtterance(chunks[idx]);
+
+    // Natural voice settings — tuned for human sound
+    utt.rate = 0.84;    // slower = more natural, less rushed
+    utt.pitch = 0.88;   // slightly lower = warm, authoritative
+    utt.volume = 1.0;
+
+    const voice = getBestVoice();
+    if(voice) utt.voice = voice;
+
+    utt.onend = ()=>{ idx++; setTimeout(speakChunk, 80); };
+    utt.onerror = ()=>{ idx++; speakChunk(); };
+    window.speechSynthesis.speak(utt);
+  }
+
+  jSpeaking = true;
+  jSetState('speaking', text);
+  speakChunk();
+
+  // Chrome TTS keepalive bug fix
+  const keepAlive = setInterval(()=>{
+    if(!jSpeaking){ clearInterval(keepAlive); return; }
+    if(window.speechSynthesis.paused) window.speechSynthesis.resume();
+  }, 4000);
+}
+
+function splitIntoChunks(text){
+  // Split on sentence boundaries for natural pacing
+  const sentences = text.match(/[^.!?]+[.!?]+|\s*[^.!?]+$/g) || [text];
+  const chunks = [];
+  let current = '';
+  for(const s of sentences){
+    if((current + s).length > 180){
+      if(current) chunks.push(current.trim());
+      current = s;
+    } else {
+      current += s;
+    }
+  }
+  if(current.trim()) chunks.push(current.trim());
+  return chunks.filter(Boolean);
+}
+
+
+// ── MIC ──
+function jStartListening(){
+  if(!jActive || jListening || jSpeaking) return;
+  if(!SR){ jLog('sys','Speech recognition not available. Use the text box below.'); return; }
+
+  jRecognition = new SR();
+  jRecognition.continuous = false;
+  jRecognition.interimResults = true;
+  jRecognition.lang = 'en-US';
+  jRecognition.maxAlternatives = 1;
+
+  jRecognition.onstart = ()=>{
+    jListening = true;
+    jSetState('listening');
+  };
+
+  let finalTranscript = '';
+  jRecognition.onresult = (e)=>{
+    let interim = '';
+    finalTranscript = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      if(e.results[i].isFinal) finalTranscript += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    if(interim) document.getElementById('jState').innerHTML = `<span style="color:rgba(255,60,60,0.7)">● ${interim}</span>`;
+  };
+
+  jRecognition.onerror = (e)=>{
+    jListening = false;
+    if(e.error === 'no-speech') {
+      // silently restart — no error shown for normal silence
+      if(jActive) setTimeout(jStartListening, 500);
+    } else if(e.error === 'not-allowed'){
+      jLog('sys', 'Microphone access denied. Please allow mic access and reload.');
+      jActive = false; jSetState('off');
+    } else {
+      if(jActive) setTimeout(jStartListening, 1000);
+    }
+  };
+
+  jRecognition.onend = ()=>{
+    jListening = false;
+    if(finalTranscript.trim()){
+      handleJarvisInput(finalTranscript.trim());
+    } else if(jActive && !jSpeaking){
+      // Nothing heard — keep listening
+      setTimeout(jStartListening, 400);
+    }
+  };
+
+  try{ jRecognition.start(); } catch(e){ jListening=false; }
+}
+
+function jStopListening(){
+  if(jRecognition){ try{ jRecognition.stop(); jRecognition.abort(); }catch(e){} jRecognition=null; }
+  jListening = false;
+}
+
+// ── SESSION TOGGLE ──
+function toggleJarvis(){
+  if(!jActive){
+    jActive = true;
+    jLog('sys', 'JARVIS is listening. Speak naturally.');
+    const hour = new Date().getHours();
+    const g = hour < 12 
+      ? "Good morning. What's going on?" 
+      : hour < 17 
+      ? "Hey, what do you need?" 
+      : "Good evening. What's up?";
+    jLog('jarvis', g);
+    jSpeak(g, ()=> jStartListening());
+  } else {
+    jActive = false;
+    jStopListening();
+    window.speechSynthesis.cancel();
+    jSpeaking = false;
+    jSetState('off');
+    jLog('sys', 'JARVIS deactivated.');
+  }
+}
+
+function toggleMute(){
+  jMuted = !jMuted;
+  const btn = document.getElementById('jMuteBtn');
+  btn.textContent = jMuted ? '🔇 VOICE OFF' : '🔊 VOICE ON';
+  btn.style.opacity = jMuted ? '0.5' : '1';
+  if(jMuted) window.speechSynthesis.cancel();
+}
+
+// ── TYPED INPUT ──
+function handleTyped(){
+  const inp = document.getElementById('jTypeInput');
+  const text = inp.value.trim();
+  if(!text) return;
+  inp.value = '';
+  handleJarvisInput(text);
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  const inp = document.getElementById('jTypeInput');
+  if(inp) inp.addEventListener('keydown', e=>{ if(e.key==='Enter') handleTyped(); });
+});
+
+// ── MAIN HANDLER ──
+async function handleJarvisInput(input){
+  const cmd = input.trim();
+  if(!cmd) return;
+
+  jStopListening();
+  jLog('you', cmd);
+  jSetState('thinking');
+
+  // Check for dashboard actions first (fast path — no API needed)
+  const actionResult = await tryDashboardAction(cmd);
+  if(actionResult){
+    jConvoHistory.push({role:'user', content: cmd});
+    jConvoHistory.push({role:'assistant', content: actionResult});
+    jLog('jarvis', actionResult);
+    jSpeak(actionResult);
+    return;
+  }
+
+  // Full Groq conversational response
+  try{
+    jConvoHistory.push({role:'user', content: cmd});
+    if(jConvoHistory.length > 20) jConvoHistory = jConvoHistory.slice(-20);
+    const systemWithContext = JARVIS_SYSTEM + '\n\n' + getDashContext();
+    const reply = await callGroq(jConvoHistory, systemWithContext);
+    jConvoHistory.push({role:'assistant', content: reply});
+    jLog('jarvis', reply);
+    jSpeak(reply);
+  } catch(e){
+    const reply = localFallback(cmd);
+    jConvoHistory.push({role:'assistant', content: reply});
+    jLog('jarvis', reply);
+    jSpeak(reply);
+  }
+}
+
+// ── FAST DASHBOARD ACTIONS (no API round-trip) ──
+async function tryDashboardAction(cmd){
+  const c = cmd.toLowerCase();
+
+  // ADD TASK
+  const addMatch = c.match(/(?:add(?:ing)?|create|set|put|make|remind(?:er)?)\s+(?:a\s+)?(?:task|to[\s-]?do|reminder|note)(?:\s+(?:for|to|about))?\s*[:\-]?\s*(.+)/i)
+    || c.match(/remind me to\s+(.+)/i)
+    || c.match(/(?:i need to|don't let me forget to|make sure i)\s+(.+)/i);
+  if(addMatch){
+    const task = addMatch[1].replace(/^(to\s+)/,'').trim();
+    const prio = /urgent|asap|important|critical|high/i.test(c) ? 'high' : /low|minor|sometime/i.test(c) ? 'low' : 'med';
+    const todos = getTodos();
+    todos.unshift({id:Date.now(), text:task, done:false, priority:prio});
+    saveTodos(todos); renderTodos(); loadAgenda();
+    return `Done. I've added "${task}" to your objectives${prio==='high'?' and flagged it high priority':''}.`;
+  }
+
+  // COMPLETE TASK
+  const doneMatch = c.match(/(?:mark|check off|complete|done with|finished?)\s+(?:task\s+)?["']?(.+?)["']?\s*(?:as done|complete)?$/i);
+  if(doneMatch){
+    const taskName = doneMatch[1].trim().toLowerCase();
+    const todos = getTodos();
+    const match = todos.find(t=>t.text.toLowerCase().includes(taskName));
+    if(match){ match.done=true; saveTodos(todos); renderTodos();
+      return `Marked "${match.text}" as complete. ${todos.filter(t=>!t.done).length} tasks remaining.`; }
+  }
+
+  // READ TASKS
+  if(/(?:what(?:'s| are| do i have)|read|list|show|tell me)(?:\s+my)?\s+(?:tasks?|to[\s-]?do|objectives|reminders)/i.test(c)
+     || /(?:what|anything) (?:do i need to do|on my list|am i doing today)/i.test(c)){
+    const todos = getTodos().filter(t=>!t.done);
+    if(!todos.length) return "Your task list is clear, sir. Either you're ahead of schedule or dangerously behind and in denial.";
+    return `You have ${todos.length} pending task${todos.length>1?'s':''}: ${todos.map(t=>t.text).join(', ')}.`;
+  }
+
+  // WEATHER
+  if(/weather|temperature|outside|forecast|rain|cold|hot|warm|coat|umbrella/i.test(c)){
+    const t = document.getElementById('tempBig').textContent;
+    const desc = document.getElementById('weatherDesc').textContent;
+    return `Currently ${t} in New York City — ${desc}.`;
+  }
+
+  // NEWS
+  if(/(?:news|headlines?|what(?:'s| is) happening|anything new|updates?)/i.test(c)){
+    const items = Array.from(document.querySelectorAll('#newsContent .news-headline')).slice(0,3).map(e=>e.textContent);
+    if(items.length) return `Top stories: ${items[0]}. Also: ${items[1]||''}${items[2]?'. And: '+items[2]:''}`;
+    await loadNews();
+    return "I've refreshed the news feed. Check the news panel for the latest.";
+  }
+
+  // SPORTS
+  if(/(?:knicks|jets|giants|ufc|golf|nfl|nba|game|score|sport|match|fight)/i.test(c)){
+    await loadSports();
+    const cards = Array.from(document.querySelectorAll('#sportsContent .game-card')).slice(0,2);
+    const info = cards.map(c=>{
+      const team = c.querySelector('.game-team')?.textContent || '';
+      const time = c.querySelector('.game-time')?.textContent || '';
+      return team + (time ? ' — '+time : '');
+    }).filter(Boolean).join('. ');
+    return info ? `Sports updated. ${info}.` : "Sports panel updated with the latest from ESPN.";
+  }
+
+  // STOCKS / MARKET
+  if(/(?:stock|market|invest|share|portfolio|ticker|trading|financ)/i.test(c)){
+    await loadStocks();
+    const tickers = Array.from(document.querySelectorAll('#stockContent .stock-ticker')).map(e=>e.textContent).join(', ');
+    return `Market picks refreshed. Currently tracking: ${tickers}.`;
+  }
+
+  // RESTAURANTS / FOOD
+  if(/(?:restaurant|food|eat|dining|hungry|dinner|lunch|brunch|where to eat)/i.test(c)){
+    await loadRestaurants();
+    const names = Array.from(document.querySelectorAll('#restoContent .resto-name')).slice(0,2).map(e=>e.textContent);
+    return `Dining options refreshed. Top picks: ${names.join(' and ')}.`;
+  }
+
+  // REFRESH ALL
+  if(/(?:refresh|update|sync|reload) (?:everything|all|dashboard)/i.test(c)){
+    loadNews(); loadSports(); loadStocks(); loadRestaurants(); loadAgenda();
+    return "All systems refreshed — news, sports, market data, and restaurants updating now.";
+  }
+
+  // TIME
+  if(/^(?:what(?:'s| is) the time|what time is it|time\??)/i.test(c)){
+    return `It's ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}.`;
+  }
+
+  // DATE
+  if(/(?:what(?:'s| is) (?:today|the date)|what day)/i.test(c)){
+    return `Today is ${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}.`;
+  }
+
+  return null; // fall through to Claude
+}
+
+// ── SPEAK helper for panel refresh buttons ──
+function speak(text){ jLog('jarvis', text); if(jActive) jSpeak(text); }
+
+// Pre-load and cache voices
+window.speechSynthesis.onvoiceschanged = ()=>{ 
+  cachedVoice = null; // reset cache so getBestVoice re-picks
+  getBestVoice();     // warm it up
+};
+
+// ══════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════
+function timeAgo(date){
+  const sec = Math.floor((Date.now()-date)/1000);
+  if(sec<60) return sec+'s ago';
+  if(sec<3600) return Math.floor(sec/60)+'m ago';
+  return Math.floor(sec/3600)+'h ago';
+}
+function escJs(s){ return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+function updateSync(){ document.getElementById('footerSync').textContent = 'LAST SYNC: '+new Date().toLocaleTimeString('en-US',{hour12:false}); }
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+renderTodos();
+loadWeather();
+loadNews();
+loadRestaurants();
+loadSports();
+loadStocks();
+loadAgenda();
+
+// ── MORNING BRIEFING — auto-runs on open ──
+async function morningBriefing(){
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const dayStr = now.toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'});
+  const todos = getTodos().filter(t=>!t.done);
+  const weather = document.getElementById('tempBig').textContent + ' and ' + document.getElementById('weatherDesc').textContent.replace(/[☀⛅☁🌫🌧🌨⛈]/g,'').trim();
+
+  try {
+    const briefing = await callGroq([{
+      role: 'user',
+      content: `Give a natural, warm, human-sounding morning briefing. Today is ${dayStr} in New York City. Weather: ${weather}. Pending tasks: ${todos.map(t=>t.text).join(', ')||'none'}. Keep it to 2-3 sentences. Start with "${greeting}." Sound like a real person talking, not a robot reading a report. No bullet points.`
+    }], JARVIS_SYSTEM);
+    jLog('jarvis', briefing);
+    setTimeout(()=>{
+      if(!jActive){
+        jActive = true;
+        jSpeak(briefing, ()=>{ jActive=false; jSetState('off'); });
+      }
+    }, 1800);
+  } catch(e) {
+    const fallback = `${greeting}. It's ${dayStr} — ${weather} out there in New York. ${todos.length ? 'You have got ' + todos.length + ' things on your list.' : 'Your task list is clear.'}`;
+    jLog('jarvis', fallback);
+    setTimeout(()=>{
+      if(!jActive){
+        jActive = true;
+        jSpeak(fallback, ()=>{ jActive=false; jSetState('off'); });
+      }
+    }, 1800);
+  }
+}
+
+// Run morning briefing after panels load
+setTimeout(morningBriefing, 2500);
+</script>
+</body>
+</html>
